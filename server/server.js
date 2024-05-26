@@ -22,15 +22,18 @@ app.get("/api/home", (req, res)=>{
 
 // MY PATH TO THE LOCAL XML FILE  
 app.get("/api/file", (req, res) => {
-    const filePath = path.join('C:', 'Users', 'dev01User', 'Desktop', 'xmlFiles', 'namaExample2.xml');
-    fs.readFile(filePath, 'utf8', (err, data) => {
-        if (err) {
-            console.error("Error reading file:", err);
-            return res.status(500).json({ error: 'Error reading file' });
-        }
-        res.json({ content: data });
+    const filePath = req.query.path;
+    if (!filePath) {
+      return res.status(400).json({ error: "File path is required" });
+    }
+    fs.readFile(filePath, "utf8", (err, data) => {
+      if (err) {
+        console.error("Error reading file:", err);
+        return res.status(500).json({ error: "Error reading file" });
+      }
+      res.json({ content: data });
     });
-});
+  });
 
 // IF THE SERVER IS UP AND RUNNING I GET THIS 
 app.listen(PORT, ()=>{

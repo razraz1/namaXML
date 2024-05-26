@@ -10,10 +10,15 @@ export default function NamaFiles() {
   // STATE TO THE LOADING SITUATION
   const [loading, setLoading] = useState(true);
 
+  // STATE TO STORE SOME PATH
+  const [filePath, setFilePath] = useState("C:/Users/dev01User/Desktop/xmlFiles/namaExample2.xml");
+  
+
   // FETCH THE DATA USING AXIOS
   const fetchData = async () => {
+    setLoading(true);
     try {
-      const response = await axios.get("http://localhost:8080/api/file");
+      const response = await axios.get(`http://localhost:8080/api/file?path=${encodeURIComponent(filePath)}`);
       console.log("response", response);
 
       // STORE THE DATA
@@ -42,6 +47,10 @@ export default function NamaFiles() {
   useEffect(() => {
     fetchData();
   }, []);
+
+  const handleInputChange = (e) => {
+    setFilePath(e.target.value);
+  };
 
   // SOME NICE CSS IF LOADING
   if (loading) {
@@ -72,8 +81,26 @@ export default function NamaFiles() {
   const e1preqcr = idoc.E1PREQCR[0];
   const e1bpebancArray = e1preqcr.E1BPEBANC;
 
+
   return (
     <div className="h-screen overflow-hidden">
+      {/* INPUT TO FILE */}
+      <div className="p-4">
+        <input
+          type="text"
+          value={filePath}
+          onChange={handleInputChange}
+          className="w-full p-2 border border-gray-300 rounded"
+          placeholder="הכנס נתיב לקובץ מסוים"
+        />
+        <button
+          onClick={fetchData}
+          className="mt-2 p-2 bg-blue-500 text-white rounded"
+        >
+          קבל מידע מנתיב זה
+        </button>
+      </div>
+
       {/* THE TABLE */}
       <Table e1bpebancArray={e1bpebancArray} />
     </div>
