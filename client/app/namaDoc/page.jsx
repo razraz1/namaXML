@@ -1,24 +1,24 @@
-"use client";
+"use client"
 
-import axios from "axios";
-import { parseString } from "xml2js";
-import React, { useEffect, useState } from "react";
-import LoadingMood from "../component/LoadingMood";
-import TheError from "../component/TheError";
-import SearchRequire from "../component/SearchRequire";
-import RTable from "../component/reqTable/RTable";
+import React, { useState } from 'react'
+import LoadingMood from '../component/LoadingMood';
+import TheError from '../component/TheError';
+import axios from 'axios';
+import SearchDocs from '../component/SearchDocs';
+import { parseString } from 'xml2js';
+import DTable from '../component/docTable/DTable';
 
-export default function NamaFiles() {
-  // State to store the XML file data
+export default function namaDoc() {
+      // State to store the XML file data
 
-  const [files, setFiles] = useState(null);
+  const [docFiles, setDocFiles] = useState(null);
 
   // State to track the loading situation
   const [loading, setLoading] = useState(false);
 
   // State to store the file path
-  const [filePath, setFilePath] = useState(
-    "C:\\Users\\dev01User\\Desktop\\xmlFiles"
+  const [docPath, setDocPath] = useState(
+    "C:\\Users\\dev01User\\Desktop\\docFiles"
   );
 
   // State to track errors
@@ -31,70 +31,77 @@ export default function NamaFiles() {
     const day = dateStr.substring(6, 8);
     return `${year}/${month}/${day}`;
   }
-  
 
-  // Fetch the data using axios
-  const fetchData = async () => {
-    // Remove surrounding quotes if present
-    // const sanitizedPath = filePath.trim().replace(/^"(.*)"$/, "$1");
-    if (!filePath) {
+  const fetchDocs = async () => {
+    if (!docPath) {
       setError("חשבת אולי לשים משהו בנתיב חיפוש 😒🤦‍♂️");
       return;
     }
     setLoading(true);
     setError("");
-
+  
     try {
       const response = await axios.get(
-        `http://localhost:8080/api/file?path=${encodeURIComponent(filePath)}`
+        `http://localhost:8080/api/file?path=${encodeURIComponent(docPath)}`
       );
       console.log("response", response);
-
+  
       // Store the data
       const results = response.data.contents; 
       const allFilesData = [];
-
+  
       results.forEach((xmlData) => {
-        parseString(xmlData,  { explicitArray: false }, (err, result) => {
+        parseString(xmlData, { explicitArray: false }, (err, result) => {
           if (err) {
             setError("Failed to parse some XML files.");
             return;
           }
-          const fileData = result.ZPREQCR_NAMA01;
+          
+          const fileData = result.DOCMAS05;
           const credat = fileData.IDOC.EDI_DC40.CREDAT;
-          const format = formatDate(credat)
-          const e1bpebancArray = fileData.IDOC.E1PREQCR.E1BPEBANC.map(item => ({
-            ...item,
+          const format = formatDate(credat);
+          const e1drawt = fileData.IDOC.E1DRAWM.E1DRAWT.DKTXT;
+          
+          
+          const e1drawfiles = Array.isArray(fileData.IDOC.E1DRAWM.E1DRAWFILES) ? 
+            fileData.IDOC.E1DRAWM.E1DRAWFILES : 
+            [fileData.IDOC.E1DRAWM.E1DRAWFILES];
+  
+          const e1bpebancArray = [{
+            ...fileData.IDOC.E1DRAWM,
+            DKTXT: e1drawt,
+            E1DRAWFILES: e1drawfiles,
             CREDAT: format,
-          }));
+          }];
+  
           allFilesData.push(...e1bpebancArray);
         });
       });
-
-      setFiles(allFilesData.flat());
+  
+      setDocFiles(allFilesData.flat());
       setLoading(false);
-
+  
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("אופס כנראה שהנתיב שלך לא קיים");
       setLoading(false);
     }
   };
-
+  
   // Handle input change for the file path
   const handleInputChange = (e) => {
-    setFilePath(e.target.value);
+    setDocPath(e.target.value);
   };
 
-  
 
   return (
     <div className="h-screen overflow-hidden relative">
 
       {/* Input for file path */}
-        <SearchRequire
-        filePath={filePath}
+        <SearchDocs
+        filePath={docPath}
         handleInputChange={handleInputChange}
+        fetchData={fetchDocs}
         formatDate={formatDate}
         setLoading={setLoading}
         setError={setError}
@@ -107,9 +114,10 @@ export default function NamaFiles() {
       {loading && <LoadingMood />}
 
       {/* Render the table if data is available */}
-      {!loading && !error && files?.length > 0 && (
-        <RTable
-          e1bpebancArray={files}
+      {!loading && !error && docFiles?.length > 0 && (
+        
+        <DTable
+          docFiles={docFiles}
         />
         
       )}
@@ -117,5 +125,5 @@ export default function NamaFiles() {
       {/* Render error state if there is an error */}
       {error && <TheError error={error} setError={setError} />}
     </div>
-  );
+  )
 }
