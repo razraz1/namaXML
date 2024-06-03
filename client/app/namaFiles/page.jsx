@@ -9,17 +9,15 @@ import SearchRequire from "../component/SearchRequire";
 import RTable from "../component/reqTable/RTable";
 
 export default function NamaFiles() {
-  // State to store the XML file data
 
+  // State to store the XML file data
   const [files, setFiles] = useState(null);
 
   // State to track the loading situation
   const [loading, setLoading] = useState(false);
 
   // State to store the file path
-  const [filePath, setFilePath] = useState(
-    "C:\\Users\\dev01User\\Desktop\\xmlFiles"
-  );
+  const [filePath, setFilePath] = useState("");
 
   // State to track errors
   const [error, setError] = useState("");
@@ -95,6 +93,7 @@ export default function NamaFiles() {
         <SearchRequire
         filePath={filePath}
         handleInputChange={handleInputChange}
+        fetchData={fetchData}
         formatDate={formatDate}
         setLoading={setLoading}
         setError={setError}

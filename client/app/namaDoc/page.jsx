@@ -9,20 +9,19 @@ import { parseString } from 'xml2js';
 import DTable from '../component/docTable/DTable';
 
 export default function namaDoc() {
-      // State to store the XML file data
 
+  // State to store the XML file data
   const [docFiles, setDocFiles] = useState(null);
 
   // State to track the loading situation
   const [loading, setLoading] = useState(false);
 
   // State to store the file path
-  const [docPath, setDocPath] = useState(
-    "C:\\Users\\dev01User\\Desktop\\docFiles"
-  );
-
+  const [docPath, setDocPath] = useState("");
+  
   // State to track errors
   const [error, setError] = useState("");
+
 
   function formatDate(dateStr) {
     if (!dateStr || dateStr.length !== 8) return dateStr;

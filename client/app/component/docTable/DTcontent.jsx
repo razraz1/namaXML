@@ -2,7 +2,6 @@ import React from "react";
 
 export default function DTcontent({ docFilter }) {
   const keysDoc = ["DOKNR", "DOKAR", "DOKTL", "DOKVR", "DKTXT", "FILENAME", "DESCRIPTION", "CREDAT"];
-  console.log(docFilter);
 
   return (
     <>

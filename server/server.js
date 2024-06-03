@@ -20,10 +20,19 @@ const util = require("util");
 const readdir = util.promisify(fs.readdir);
 const readFile = util.promisify(fs.readFile);
 
-// SOME EXAMPLE
-app.get("/api/home", (req, res)=>{
-    res.json({message: "HELLO WORLD ", ppl: ['razi', 'el', 'rashad']})
-})
+
+// Endpoint to read paths from the text file
+app.get("/api/paths", async (req, res) => {
+    const filePath = "C:\\Users\\dev01User\\Desktop\\DocPath\\docPaths.txt";
+    try {
+        const data = await readFile(filePath, 'utf8');
+        const pathsArray = data.split('\n').map(line => line.split(': ')[1]);
+        res.json(pathsArray);
+    } catch (err) {
+        console.error("Error reading paths file:", err);
+        res.status(500).json({ error: 'Error reading paths file', message: err.message });
+    }
+});
 
 // MY PATH TO THE LOCAL XML FILE  
 app.get("/api/file", async(req, res) => {

@@ -10,7 +10,7 @@ export default function DThead() {
     'שם המסמך',
     "שם הקובץ",
     'תיאור הקובץ',
-    "תאריך"
+    "תאריך",
   ];
   return (
     <div className="grid grid-cols-8  text-center gap-4 mx-1 font-bold py-3 z-10 rounded-lg leading-6 text-white sticky top-0 bg-gradient-to-r from-purple-500 to-indigo-600 shadow-lg md:truncate ">
