@@ -2,51 +2,71 @@
 
 import axios from "axios";
 import Link from "next/link";
-import React, { useState, useEffect } from "react";
+import React, { useState } from "react";
 import { parseString } from "xml2js";
 import DTable from "./docTable/DTable";
+import LoadingMood from "./LoadingMood";
+import HomeBtn from "./btns/HomeBtn";
+import SearchBtn from "./btns/SearchBtn";
+import InputPath from "./InputPath";
+import InputToSearch from "./InputToSearch";
+import ShowPath from "./ShowPath";
+import TheError from "./TheError";
 
-export default function SearchDocs({
-  filePath,
-  handleInputChange,
-  fetchData,
-  formatDate,
-  setLoading,
-  setError,
-  error,
-}) {
+export default function SearchDocs({ formatDate }) {
+
+  // מכיל את מספר המסמך לחיפוש
   const [docNumber, setDocNumber] = useState("");
+
+  // מכיל את הנתיבים
+  const [docPath, setDocPath] = useState("");
+
+  // מכיל את המסמכים עם אותו מספר שחיפשתי
   const [docFilter, setDocFilter] = useState([]);
+
+  // מכיל את הנתיבים לתיקיות כדי לחפש בהם
   const [paths, setPaths] = useState([]);
+
+  // מראה את הנתיבים בלחיצה על האינפוט
   const [showPaths, setShowPaths] = useState(false);
 
-  const [changeText, setChangeText] = useState(false);
-  const handleChangeText = () => {
-    setChangeText(!changeText);
+  // אם יש טעינה
+  const [loading, setLoading] = useState(false);
+
+  // אם יש שגיאה
+  const [error, setError] = useState("");
+
+  // אם יש שינו באינפוט
+  const handleInputChange = (e) => {
+    setDocPath(e.target.value);
   };
 
-  useEffect(() => {
-    // Fetch paths from the backend when the component mounts
-    const fetchPaths = async () => {
-      try {
-        const response = await axios.get("http://localhost:8080/api/paths");
-        setPaths(response.data);
-      } catch (error) {
-        console.error("Error fetching paths:", error);
-        setError("Failed to fetch paths from the file.");
-      }
-    };
+  // להביא את הנתיבים לתיקיות
+  const fetchPaths = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/paths");
+      console.log(response, "yjhfkjfhj");
+      setPaths(response.data);
+    } catch (error) {
+      console.error("Error fetching paths:", error);
+      setError("Failed to fetch paths from the file.");
+    }
+  };
 
-    fetchPaths();
-  }, []);
+  // לגרום לחפש מספר מסמך גם אם הוא מלא או רק מה שהמשתמשים רואים
+  const normalizeDocNumber = (str) => {
+    const coreDocNumber = str.length > 11 ? str.substring(5, 16) : str;
+    return coreDocNumber.replace(/^0+/, ""); // Remove leading zeros
+  };
 
-  const normalizeDocNumber = (str) => str.slice(5, 16);
-
+  // עושה את החיפוש
   const handleSearchDoc = async () => {
-    if (!filePath) {
+    // אם הנתיב שגוי
+    if (!docPath) {
       setError("הנתיב כנראה לא נכון");
       return;
     }
+    // אם המספר מסמך שגוי
     if (!docNumber) {
       setError(" כנראה שהמספר מסמך לא חוקי או לא קיים🤷‍♂️");
       return;
@@ -54,46 +74,67 @@ export default function SearchDocs({
     setLoading(true);
     setError("");
 
+    // להביא את הקישור לקובץ ולהביא אותו כסטרינג
     try {
-      const response = await axios.get(
-        `http://localhost:8080/api/file?path=${encodeURIComponent(filePath)}`
-      );
+      const [fileResponse, linksResponse] = await Promise.all([
+        // קריאת הקובץ
+        axios.get(
+          `http://localhost:8080/api/file?path=${encodeURIComponent(docPath)}`
+        ),
+        // מביא את הנתיב
+        axios.get(`http://localhost:8080/api/filePaths?path=${docPath}`),
+      ]);
 
-      const results = response.data.contents;
+      // תוצאה, הלינק, וזמן יצירת המסמך
+      const results = fileResponse.data.contents;
+      const links = linksResponse.data;
+      const creationTimes = fileResponse.data.creationTimes;
+
+      // מכיל את מה שדומה למה שחיפשתי
       const filteredResults = [];
 
-      results.forEach((xmlData) => {
+      // עושה סטרינג מהקובץ כדי לקרוא אותו
+      results.forEach((xmlData, index) => {
         parseString(xmlData, { explicitArray: false }, (err, result) => {
           if (err) {
             setError("Failed to parse some XML files.");
             return;
           }
 
+          // המידע שבקובץ
           const fileData = result.DOCMAS05;
           const credat = fileData.IDOC.EDI_DC40.CREDAT;
           const format = formatDate(credat);
 
+          // אם המידע כמערך הוא קורא אותו ואם לא אז הוא הופך אותו למערך כדי לקרוא
           const e1dawmArray = Array.isArray(fileData.IDOC.E1DRAWM)
             ? fileData.IDOC.E1DRAWM
             : [fileData.IDOC.E1DRAWM];
 
+          // חותך את מה שחיפשתי ומפלטר מהתיקייה רק את מה שאותו דבר
           const normalizedDocNumber = normalizeDocNumber(docNumber);
-          const matchDoc = e1dawmArray.filter((item) =>
-            normalizeDocNumber(item.DOKNR).includes(normalizedDocNumber)
+          const matchDoc = e1dawmArray.filter(
+            (item) => normalizeDocNumber(item.DOKNR) === normalizedDocNumber
           );
 
+          // אם יש משהו
           if (matchDoc.length) {
             matchDoc.forEach((item) => {
+              // אם המידע כמערך הוא קורא אותו ואם לא אז הוא הופך אותו למערך כדי לקרוא
               const e1drawt = item.E1DRAWT.DKTXT;
               const e1drawfiles = Array.isArray(item.E1DRAWFILES)
                 ? item.E1DRAWFILES
                 : [item.E1DRAWFILES];
 
+              // מכיל את כל המידע שרצינו מהקובץ
               const match = {
                 ...item,
                 DKTXT: e1drawt,
                 E1DRAWFILES: e1drawfiles,
                 CREDAT: format,
+                link: links[index],
+                linkToXML: results[index],
+                creationTime: creationTimes[index],
               };
               filteredResults.push(match);
             });
@@ -101,12 +142,15 @@ export default function SearchDocs({
         });
       });
 
-      if (filteredResults.length === 0) {
-        setError("🤷‍♂️לא נמצאו תוצאות עבור מספר הדרישה שהוזן");
-      } else {
-        setDocFilter(filteredResults);
-      }
-      setLoading(false);
+      // מראה טעינה לטבלה
+      setTimeout(() => {
+        if (filteredResults.length === 0) {
+          setError("🤷‍♂️לא נמצאו תוצאות עבור מספר המסמך שהוזן");
+        } else {
+          setDocFilter(filteredResults);
+        }
+        setLoading(false);
+      }, 200);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("הנתיב כנראה לא חוקי");
@@ -114,73 +158,56 @@ export default function SearchDocs({
     }
   };
 
+  // לחיצה על האינפוט של הנתיבים
   const handlePathClick = (path) => {
     handleInputChange({ target: { value: path } });
-    setShowPaths(false);
+    setShowPaths(!showPaths);
+    console.log(docPath, "ujtf");
   };
 
   return (
     <div className="p-4">
       <div className="relative">
-        <input
-          type="text"
-          value={filePath}
-          onChange={handleInputChange}
-          onClick={() => setShowPaths(true)}
-          className="w-full p-2 border border-gray-300 rounded"
-          placeholder="הכנס נתיב לקובץ מסוים"
+        {/* אינפוט לנתיבים */}
+        <InputPath
+          filePath={docPath}
+          handleInputChange={handleInputChange}
+          fetchPaths={fetchPaths}
+          setShowPaths={setShowPaths}
+          showPaths={showPaths}
         />
+
+        {/* מראה נתיבים לתיקיות בלחיצה */}
         {showPaths && (
-          <div
-            onClick={() => setShowPaths(false)}
-            className="absolute z-20 bg-gradient-to-r from-indigo-600 to-purple-500 text-white border border-gray-300 rounded mt-2 p-2 w-full"
-          >
-            <button
-              className="w-full py-1 hover:bg-red-600 rounded-full"
-              onClick={() => setShowPaths(false)}
-              onMouseEnter={handleChangeText}
-              onMouseLeave={handleChangeText}
-            >
-              {changeText ? "סגירת אפשרויות" : "לסגור סופית"}
-            </button>
-            {paths.map((path, index) => (
-              <div
-                key={index}
-                onClick={() => handlePathClick(path)}
-                className="p-2 hover:bg-[#2E0249] cursor-pointer"
-              >
-                {path}
-              </div>
-            ))}
-          </div>
+          <ShowPath
+            setShowPaths={setShowPaths}
+            showPaths={showPaths}
+            path={paths}
+            pathClick={handlePathClick}
+          />
         )}
       </div>
 
-      <input
-        type="text"
-        value={docNumber}
-        onChange={(e) => setDocNumber(e.target.value)}
-        className="w-full p-2 mt-2 border border-gray-300 rounded"
-        placeholder="קוד מסמך לחיפוש"
-      />
+      {/* אינפוט לחפש מסמך */}
+      <InputToSearch number={docNumber} changeNumber={setDocNumber} />
 
       <div className="flex justify-between">
-        <button
-          onClick={handleSearchDoc}
-          className="mt-2 p-2 bg-[#570A57] text-white rounded"
-        >
-          קבל מידע על מסמך זה
-        </button>
+        {/* כפתור חיפוש */}
+        <SearchBtn search={handleSearchDoc} />
 
-        <Link href="./home">
-          <button className="mt-2 p-2 bg-[#570A57] text-white rounded">
-            לדף הבית
-          </button>
-        </Link>
+        {/*כפתור לדף הבית  */}
+        <HomeBtn />
       </div>
 
       <div className="h-screen overflow-hidden relative">
-        <DTable docFilter={docFilter} />
+        {/* מראה טעינה לטבלה */}
+        {loading && <LoadingMood />}
+
+        {/* מראה אם יש שגיאה ומהי */}
+        {error && <TheError error={error} setError={setError} />}
+
+        {/* אם אין שגיאה ונגמר הטעינה אז מראה את הטבלה */}
+        {!loading && !error && <DTable docFilter={docFilter} />}
       </div>
     </div>
   );

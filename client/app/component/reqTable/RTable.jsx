@@ -13,9 +13,10 @@ export default function RTable({ filteredData }) {
         <div
           className="bg-[#C689C6]"
         >
-
+          {/* ראש הטבלה */}
           <RThead />
 
+          {/* תוכן הטבלה */}
           <RTcontent filteredData={filteredData}  />
         </div>
       </div>

@@ -29,5 +29,21 @@
       cursor: pointer;
   }
 
-  
+  @keyframes stuckXML {
+    0%, 100% {
+      opacity: 1;
+    }
+    50% {
+      opacity: 0.4;
+    }
+  }
+
+  .stuckXML-dot {
+    width: 10px;
+    height: 10px;
+    border-radius: 50%;
+    background-color: yellow;
+    animation: stuckXML 0.5s infinite;
+    display: inline-block;
+  }
   

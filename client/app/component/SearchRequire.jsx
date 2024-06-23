@@ -1,86 +1,138 @@
 "use client";
-import React, { useEffect, useState } from "react";
+import React, { useState } from "react";
 import axios from "axios";
 import { parseString } from "xml2js";
-import Link from "next/link";
 import RTable from "./reqTable/RTable";
+import LoadingMood from "./LoadingMood";
+import HomeBtn from "./btns/HomeBtn";
+import SearchBtn from "./btns/SearchBtn";
+import InputPath from "./InputPath";
+import InputToSearch from "./InputToSearch";
+import ShowPath from "./ShowPath";
+import TheError from "./TheError";
 
-export default function SearchRequire({ filePath, handleInputChange, formatDate, setLoading, setError }) {
-  const [preoNo, setPreo] = useState("");
+export default function SearchRequire({ formatDate }) {
+  // מכיל את מספר הדרישה לחיפוש
+  const [preoNo, setPreo] = useState("0086679964");
+
+  // מכיל את הנתיבים
+  const [filePath, setFilePath] = useState("");
+
+  // מכיל את הדרישות עם אותו מספר שחיפשתי
   const [filteredData, setFilteredData] = useState([]);
+
+  // מכיל את הנתיבים לתיקיות כדי לחפש בהם
   const [reqPaths, setReqPaths] = useState([]);
+
+  // מראה את הנתיבים בלחיצה על האינפוט
   const [showReqPaths, setShowReqPaths] = useState(false);
 
-  useEffect(() => {
-    // Fetch paths from the backend when the component mounts
-    const fetchPaths = async () => {
-        try {
-            const response = await axios.get('http://localhost:8080/api/paths');
-            setReqPaths(response.data);
-        } catch (error) {
-            console.error("Error fetching paths:", error);
-            setError("Failed to fetch paths from the file.");
-        }
-    };
+  // אם יש טעינה
+  const [loading, setLoading] = useState(false);
 
-    fetchPaths();
-}, []);
+  // אם יש שגיאה
+  const [error, setError] = useState("");
 
-  const removeLeadingZeros = (str) => str.replace(/^00?/, '');
+  // אם יש שינו באינפוט
+  const handleInputChange = (e) => {
+    setFilePath(e.target.value);
+  };
 
+  // להביא את הנתיבים לתיקיות
+  const fetchPaths = async () => {
+    try {
+      const response = await axios.get("http://localhost:8080/api/paths");
+      setReqPaths(response.data);
+    } catch (error) {
+      console.error("Error fetching paths:", error);
+      setError("Failed to fetch paths from the file.");
+    }
+  };
+
+  // לגרום לחפש מספר דרישה גם אם הוא מלא או רק מה שהמשתמשים רואים
+  const removeLeadingZeros = (str) => str.replace(/^00?/, "");
+
+  // עושה את החיפוש
   const handleSearch = async () => {
+    // אם הנתיב שגוי
     if (!filePath) {
       setError("הנתיב כנראה לא נכון");
       return;
     }
+    // אם המספר דרישה שגוי
     if (!preoNo) {
-      setError(" כנראה שהמספר דרישה לא חוקי או לא קיים🤷‍♂️");
+      setError("כנראה שהמספר דרישה לא חוקי או לא קיים🤷‍♂️");
       return;
     }
     setLoading(true);
     setError("");
 
-    const normalizedPreoNo = removeLeadingZeros(preoNo);
-
+    // להביא את הקישור לקובץ ולהביא אותו כסטרינג
     try {
-      const response = await axios.get(
-        `http://localhost:8080/api/file?path=${encodeURIComponent(filePath)}`
-      );
+      const [fileResponse, linksResponse] = await Promise.all([
+        // קריאת הקובץ
+        axios.get(
+          `http://localhost:8080/api/file?path=${encodeURIComponent(filePath)}`
+        ),
+        // מביא את הנתיב
+        axios.get(`http://localhost:8080/api/filePaths?path=${filePath}`),
+      ]);
 
-      const results = response.data.contents;
+      // תוצאה, הלינק, וזמן יצירת המסמך
+      const results = fileResponse.data.contents;
+      const links = linksResponse.data;
+      const creationTimes = fileResponse.data.creationTimes;
+
+      // מכיל את מה שדומה למה שחיפשתי
       const filteredResults = [];
 
-      results.forEach((xmlData) => {
+      // עושה סטרינג מהקובץ כדי לקרוא אותו
+      results.forEach((xmlData, index) => {
         parseString(xmlData, { explicitArray: false }, (err, result) => {
           if (err) {
             setError("Failed to parse some XML files.");
             return;
           }
 
+          // המידע שבקובץ
           const fileData = result.ZPREQCR_NAMA01;
           const credat = fileData.IDOC.EDI_DC40.CREDAT;
           const format = formatDate(credat);
 
-          const matchedData = fileData.IDOC.E1PREQCR.E1BPEBANC.filter(item => 
-            removeLeadingZeros(item.PREO_NO) === normalizedPreoNo
+          // אם המידע כמערך הוא קורא אותו ואם לא אז הוא הופך אותו למערך כדי לקרוא
+          let e1bpebanc = fileData.IDOC.E1PREQCR.E1BPEBANC;
+          e1bpebanc = Array.isArray(e1bpebanc) ? e1bpebanc : [e1bpebanc];
+
+          // חותך את מה שחיפשתי ומפלטר מהתיקייה רק את מה שאותו דבר
+          const normalizedPreoNo = removeLeadingZeros(preoNo);
+          const matchedData = e1bpebanc.filter(
+            (item) => removeLeadingZeros(item.PREO_NO) === normalizedPreoNo
           );
 
+          // אם יש משהו
           if (matchedData.length) {
-            const matchedWithCredat = matchedData.map(item => ({
+            // מכיל את כל המידע שרצינו מהקובץ
+            const matchedWithCredat = matchedData.map((item) => ({
               ...item,
               CREDAT: format,
+              link: links[index],
+              linkToXML: results[index],
+              creationTime: creationTimes[index],
             }));
             filteredResults.push(...matchedWithCredat);
           }
         });
       });
 
-      if (filteredResults.length === 0) {
-        setError("🤷‍♂️לא נמצאו תוצאות עבור מספר הדרישה שהוזן");
-      } else {
-        setFilteredData(filteredResults);
-      }
-      setLoading(false);
+      // מראה טעינה לטבלה
+      setTimeout(() => {
+        if (filteredResults.length === 0) {
+          setError("🤷‍♂️לא נמצאו תוצאות עבור מספר הדרישה שהוזן");
+        } else {
+          setFilteredData(filteredResults);
+        }
+        setLoading(false);
+      }, 200);
     } catch (error) {
       console.error("Error fetching data:", error);
       setError("הנתיב כנראה לא חוקי");
@@ -88,56 +140,54 @@ export default function SearchRequire({ filePath, handleInputChange, formatDate,
     }
   };
 
+  // לחיצה על האינפוט של הנתיבים
   const handlePathClick = (path) => {
     handleInputChange({ target: { value: path } });
-    setShowReqPaths(false);
-};
+    setShowReqPaths(!showReqPaths);
+  };
 
   return (
     <div className="p-4">
       <div className="relative">
-      <input
-        type="text"
-        value={filePath}
-        onChange={handleInputChange}
-        onClick={()=>setShowReqPaths(true)}
-        className="w-full p-2 border border-gray-300 rounded"
-        placeholder="הכנס נתיב לקובץ מסוים"
-      />
-      {showReqPaths && (
-                    <div className="absolute z-20 bg-gradient-to-r from-purple-500 to-indigo-600 text-white border border-gray-300 rounded mt-2 p-2 w-full">
-                        {reqPaths.map((path, index) => (
-                            <div
-                                key={index}
-                                onClick={() => handlePathClick(path)}
-                                className="p-2 hover:bg-[#2E0249] cursor-pointer"
-                            >
-                                {path}
-                            </div>
-                        ))}
-                    </div>
-                )}
+        {/* אינפוט לנתיבים */}
+        <InputPath
+          filePath={filePath}
+          handleInputChange={handleInputChange}
+          fetchPaths={fetchPaths}
+          setShowPaths={setShowReqPaths}
+          showPaths={showReqPaths}
+        />
+
+        {/* מראה נתיבים לתיקיות בלחיצה */}
+        {showReqPaths && (
+          <ShowPath
+            setShowPaths={setShowReqPaths}
+            showPaths={showReqPaths}
+            path={reqPaths}
+            pathClick={handlePathClick}
+          />
+        )}
       </div>
-      <input
-        type="text"
-        value={preoNo}
-        onChange={(e) => setPreo(e.target.value)}
-        className="w-full p-2 mt-2 border border-gray-300 rounded"
-        placeholder="קוד דרישה לחיפוש"
-      />
+
+      {/* אינפוט לחפש דרישה */}
+      <InputToSearch number={preoNo} changeNumber={setPreo} />
+
       <div className="flex justify-between">
-        <button
-          onClick={handleSearch}
-          className="mt-2 p-2 bg-[#570A57] text-white rounded"
-        >
-          קבל מידע על מספר דרישה זו
-        </button>
-        <Link href="./home">
-          <button className="mt-2 p-2 bg-[#570A57] text-white rounded">לדף הבית</button>
-        </Link>
+        {/* כפתור חיפוש */}
+        <SearchBtn search={handleSearch} />
+
+        {/*כפתור לדף הבית  */}
+        <HomeBtn />
       </div>
       <div className="h-screen overflow-hidden relative">
-        <RTable filteredData={filteredData} />
+        {/* מראה טעינה לטבלה */}
+        {loading && <LoadingMood />}
+
+        {/* מראה אם יש שגיאה ומהי */}
+        {error && <TheError error={error} setError={setError} />}
+
+        {/* אם אין שגיאה ונגמר הטעינה אז מראה את הטבלה */}
+        {!loading && !error && <RTable filteredData={filteredData} />}
       </div>
     </div>
   );
